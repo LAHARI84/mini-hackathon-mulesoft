@@ -1,0 +1,165 @@
+#%RAML 1.0
+
+title: Employee Onboarding Experience API
+description: API for submitting new employee onboarding requests
+version: v1
+baseUri: http://localhost:8081/api
+
+types:
+
+  Employee:
+    type: object
+    properties:
+      employeeId:
+        type: string
+        required: true
+        example: EMP101
+
+      firstName:
+        type: string
+        required: true
+        example: Rahul
+
+      lastName:
+        type: string
+        required: true
+        example: Kumar
+
+      email:
+        type: string
+        required: true
+        example: rahul@gmail.com
+
+      phone:
+        type: string
+        required: true
+        example: "9876543210"
+
+      employmentType:
+        type: string
+        required: true
+        enum:
+          - FULL_TIME
+          - PART_TIME
+          - CONTRACT
+        example: FULL_TIME
+
+      department:
+        type: string
+        required: true
+        example: IT
+
+      salary:
+        type: number
+        required: true
+        example: 60000
+
+  SuccessResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: SUCCESS
+      message:
+        type: string
+        example: Employee onboarded successfully
+      employeeId:
+        type: string
+        example: EMP101
+
+  ErrorResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: FAILED
+      errorCode:
+        type: string
+        example: VALIDATION_ERROR
+      message:
+        type: string
+        example: Invalid employee data
+
+/employees:
+
+  /onboard:
+
+    post:
+      description: Submit a new employee for onboarding
+
+      body:
+        application/json:
+          type: Employee
+          example:
+            {
+              "employeeId": "EMP101",
+              "firstName": "Rahul",
+              "lastName": "Kumar",
+              "email": "rahul@gmail.com",
+              "phone": "9876543210",
+              "employmentType": "FULL_TIME",
+              "department": "IT",
+              "salary": 60000
+            }
+
+      responses:
+
+        200:
+          description: Employee onboarding completed successfully
+          body:
+            application/json:
+              type: SuccessResponse
+              example:
+                {
+                  "status": "SUCCESS",
+                  "message": "Employee onboarded successfully",
+                  "employeeId": "EMP101"
+                }
+
+        400:
+          description: Invalid employee data
+          body:
+            application/json:
+              type: ErrorResponse
+              example:
+                {
+                  "status": "FAILED",
+                  "errorCode": "VALIDATION_ERROR",
+                  "message": "Invalid employee data"
+                }
+
+        409:
+          description: Employee already exists
+          body:
+            application/json:
+              type: ErrorResponse
+              example:
+                {
+                  "status": "FAILED",
+                  "errorCode": "DUPLICATE_EMPLOYEE",
+                  "message": "Employee already exists"
+                }
+
+        422:
+          description: Employee is not eligible
+          body:
+            application/json:
+              type: ErrorResponse
+              example:
+                {
+                  "status": "FAILED",
+                  "errorCode": "EMPLOYEE_NOT_ELIGIBLE",
+                  "message": "Employee is not eligible according to HR"
+                }
+
+        502:
+          description: Downstream system failure
+          body:
+            application/json:
+              type: ErrorResponse
+              example:
+                {
+                  "status": "FAILED",
+                  "errorCode": "HR_API_FAILURE",
+                  "message": "HR service unavailable"
+                }
