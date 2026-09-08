@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+
+    <!-- HTTP LISTENER CONFIG -->
+    <http:listener-config name="PROCESS_HTTP_Listener_config"
+                          doc:name="HTTP Listener config"
+                          doc:id="dbfb19a4-218a-48ba-ba2c-164490a671ee">
+        <http:listener-connection host="0.0.0.0" port="8083"/>
+    </http:listener-config>
+
+    <!-- HR HTTP REQUEST CONFIG -->
+    <http:request-config name="HTTP_Request_configuration"
+                         doc:name="HTTP Request configuration"
+                         doc:id="b3c4d56d-eecc-4103-a3ab-00a254722516">
+        <http:request-connection host="localhost" port="8084"/>
+    </http:request-config>
+
+    <!-- DATABASE CONFIG -->
+    <db:config name="Database_Config"
+               doc:name="Database Config"
+               doc:id="d407f42c-9f9a-48ad-aa87-5407a066ded2">
+
+        <db:my-sql-connection
+            host="sql12.freesqldatabase.com"
+            port="3306"
+            user="sql12836690"
+            password="95QT2faDnc"
+            database="sql12836690"/>
+
+    </db:config>
+
+
+    <!-- MAIN PROCESS API FLOW -->
+    <http:request-config name="PAYROLL_HTTP_Request_config" doc:name="HTTP Request configuration" doc:id="9c504cae-7680-4e8e-b40a-da15049f5544" >
+		<http:request-connection host="localhost" port="8085" />
+	</http:request-config>
+	<http:request-config name="NOTIFICATION_HTTP_Request_config" doc:name="HTTP Request configuration" doc:id="fc718450-ff24-4e16-a601-404f96a4440e" >
+		<http:request-connection host="localhost" port="8086" />
+	</http:request-config>
+	<flow name="process-apiFlow"
+          doc:id="dbdcabe4-cc01-4aed-a7bd-a8e30ec3b619">
+
+        <!-- LISTENER -->
+        <http:listener doc:name="Listener"
+                       doc:id="ae715644-132b-4ffa-a3fb-1ef16fe16220"
+                       config-ref="PAYROLL_HTTP_Listener_config"
+                       path="/process/onboard">
+			<http:response statusCode="#[vars.httpStatus default 200]" />
+		</http:listener>
+
+
+        <!-- LOG REQUEST -->
+        <logger level="INFO"
+                doc:name="Logger"
+                doc:id="60896866-f70d-4a75-8cfd-ffeecd0969fa"
+                message="Received payload: #[payload]"/>
+
+
+        <!-- STORE EMPLOYEE -->
+        <set-variable value="#[payload]"
+                      doc:name="Set Variable"
+                      doc:id="c5a9c9b9-cd56-4636-879d-220088ca3666"
+                      variableName="employee"/>
+
+
+        <!-- ========================= -->
+        <!-- VALIDATION -->
+        <!-- ========================= -->
+
+        <choice doc:name="Validation Choice"
+                doc:id="7850e4d8-3706-4c12-b1b2-20205788acbb">
+
+            <when expression="#[vars.employee == null&#10;                or isEmpty(vars.employee.employeeId)&#10;                or isEmpty(vars.employee.firstName)&#10;                or isEmpty(vars.employee.lastName)&#10;                or isEmpty(vars.employee.email)&#10;                or isEmpty(vars.employee.phone)&#10;                or isEmpty(vars.employee.employmentType)&#10;                or isEmpty(vars.employee.department)&#10;                or vars.employee.salary == null&#10;                or vars.employee.salary &lt;= 0]">
+
+                <set-variable value="400"
+                              doc:name="Set Variable"
+                              doc:id="57213fec-6c0d-4ae6-90a3-7e9db1f7e017"
+                              variableName="httpStatus"/>
+
+                <set-payload value='#[%dw 2.0
+output application/json
+---
+{
+    status: "FAILED",
+    errorCode: "VALIDATION_ERROR",
+    message: "Invalid employee data"
+}]'
+                             doc:name="Set Payload"
+                             doc:id="40fcbf75-bba5-4802-ab79-4b5c37cf39ce"/>
+
+            </when>
+
+
+            <otherwise>
+
+                <!-- ========================= -->
+                <!-- DATABASE DUPLICATE CHECK -->
+                <!-- ========================= -->
+
+                <db:query-single doc:name="Query single"
+                                 doc:id="9451f888-5651-42a3-a228-5145a787b0d0"
+                                 config-ref="Database_Config">
+
+                    <db:sql><![CDATA[SELECT COUNT(*) AS employee_count
+FROM employees
+WHERE employee_id = :employeeId
+                    ]]></db:sql>
+
+                    <db:input-parameters><![CDATA[
+#[{
+    employeeId: vars.employee.employeeId
+}]
+                    ]]></db:input-parameters>
+
+                </db:query-single>
+
+
+                <!-- ========================= -->
+                <!-- DUPLICATE CHECK -->
+                <!-- ========================= -->
+
+                <choice doc:name="Duplicate Check"
+                        doc:id="623de753-d53b-4cc8-b4bd-18cfe9118565">
+
+                    <when expression="#[payload.employee_count &gt; 0]">
+
+                        <set-variable value="409"
+                                      doc:name="Set Variable"
+                                      doc:id="82b2ff2a-767d-4001-be29-37158372d49b"
+                                      variableName="httpStatus"/>
+
+                        <set-payload value='#[%dw 2.0
+output application/json
+---
+{
+    status: "FAILED",
+    errorCode: "DUPLICATE_EMPLOYEE",
+    message: "Employee already exists"
+}]'
+                                     doc:name="Set Payload"
+                                     doc:id="fd3d0d35-6ed0-4cda-ad87-9569b4e4de75"/>
+
+                    </when>
+
+
+                    <otherwise>
+
+                        <!-- ========================= -->
+                        <!-- HR ELIGIBILITY REQUEST -->
+                        <!-- ========================= -->
+
+                        <http:request method="GET"
+                                      doc:name="Request"
+                                      doc:id="7d798e6a-c573-4eec-a0a2-f354a1496166"
+                                      config-ref="HTTP_Request_configuration"
+                                      path='#["/hr/eligibility/" ++ vars.employee.employeeId]'/>
+
+                        <set-variable value="#[payload]"
+                                      doc:name="Set Variable"
+                                      doc:id="7483d883-fcba-453f-a8f7-f8f5b0927224"
+                                      variableName="hrResponse"/>
+
+
+                        <!-- ========================= -->
+                        <!-- HR ELIGIBILITY CHOICE -->
+                        <!-- ========================= -->
+
+                        <choice doc:name="HR Eligibility Choice"
+                                doc:id="6351f173-58ed-4010-82b1-67cdfa072ba3">
+
+                            <!-- ELIGIBLE -->
+                            <when expression="#[vars.hrResponse.eligible == true]">
+
+                                <logger level="INFO"
+                                        doc:name="Logger"
+                                        doc:id="351d7d44-89c6-4bb4-8e41-0c7af17a484c"
+                                        message="Employee is eligible according to HR"/>
+
+
+                                <!-- ========================= -->
+                                <!-- EMPLOYMENT TYPE CHOICE -->
+                                <!-- ========================= -->
+
+                                <choice doc:name="Employment Type Choice"
+                                        doc:id="00843dce-ca14-439a-a57f-e0a229a6de9a">
+
+                                    <!-- FULL TIME -->
+                                    <when expression='#[vars.employee.employmentType == "FULL_TIME"]'>
+
+                                        <set-variable value='#[%dw 2.0
+output application/java
+---
+[
+    "HEALTH_INSURANCE",
+    "PF",
+    "PAID_LEAVE"
+]]'
+                                                      doc:name="Set Variable"
+                                                      doc:id="ca37d2ca-cc75-4162-995f-173aa504a430"
+                                                      variableName="benefits"/>
+
+                                    </when>
+
+
+                                    <!-- PART TIME -->
+                                    <when expression='#[vars.employee.employmentType == "PART_TIME"]'>
+
+                                        <set-variable value='#[%dw 2.0
+output application/java
+---
+[
+    "PAID_LEAVE"
+]]'
+                                                      doc:name="Set Variable"
+                                                      variableName="benefits"/>
+
+                                    </when>
+
+
+                                    <!-- CONTRACT -->
+                                    <otherwise>
+
+                                        <set-variable value='#[%dw 2.0
+output application/java
+---
+[
+    "BASIC_INSURANCE"
+]]'
+                                                      doc:name="Set Variable"
+                                                      doc:id="25aa9b99-b779-4db3-9dc3-0f26cae8a618"
+                                                      variableName="benefits"/>
+
+                                    </otherwise>
+
+                                </choice>
+
+
+                                <!-- ========================= -->
+                                <!-- INSERT EMPLOYEE INTO DB -->
+                                <!-- ========================= -->
+
+                                <http:request method="POST" doc:name="Request" doc:id="9bda0304-fb0f-4991-903f-03b92eb6062a" url="http://localhost:8085/payroll/employees" config-ref="PAYROLL_HTTP_Request_config">
+									<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    employeeId: vars.employee.employeeId,
+    name: vars.employee.name,
+    email: vars.employee.email,
+    department: vars.employee.department,
+    salary: vars.employee.salary,
+    employmentType: vars.employee.employmentType,
+    benefits: vars.benefits
+}]]]></http:body>
+								</http:request>
+								<db:insert doc:name="Insert"
+                                           doc:id="e0ad4acf-fd72-4fe5-8544-a2a051912408"
+                                           config-ref="Database_Config">
+
+                                    <db:sql><![CDATA[
+INSERT INTO employees
+(
+    employee_id,
+    first_name,
+    last_name,
+    email,
+    phone,
+    employment_type,
+    department,
+    salary,
+    status
+)
+VALUES
+(
+    :employeeId,
+    :firstName,
+    :lastName,
+    :email,
+    :phone,
+    :employmentType,
+    :department,
+    :salary,
+    :status
+)
+                                    ]]></db:sql>
+
+                                    <db:input-parameters><![CDATA[
+#[
+{
+    employeeId: vars.employee.employeeId,
+    firstName: vars.employee.firstName,
+    lastName: vars.employee.lastName,
+    email: vars.employee.email,
+    phone: vars.employee.phone,
+    employmentType: vars.employee.employmentType,
+    department: vars.employee.department,
+    salary: vars.employee.salary,
+    status: "ONBOARDED"
+}
+]
+                                    ]]></db:input-parameters>
+
+                                </db:insert>
+
+
+                                <!-- ========================= -->
+                                <!-- PAYROLL READY JSON -->
+                                <!-- ========================= -->
+
+                                <http:request method="POST" doc:name="Request" doc:id="25a53381-5579-4b19-bc1d-280911ce0e9c" url="http://localhost:8086/notifications/welcome" config-ref="NOTIFICATION_HTTP_Request_config">
+									<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    employeeId: vars.employee.employeeId,
+    name: vars.employee.name,
+    email: vars.employee.email
+}]]]></http:body>
+								</http:request>
+								<ee:transform doc:name="Transform Message"
+                                              doc:id="4dbf3655-0e30-419c-81e3-4f368fe70a41">
+
+                                    <ee:message>
+
+                                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    employeeId: attributes.uriParams.employeeId,
+    eligible: attributes.uriParams.employeeId != "EMP998",
+    employmentStatus: if (attributes.uriParams.employeeId == "EMP998")
+                       "INACTIVE"
+                       else
+                       "ACTIVE"
+
+}
+                                        ]]></ee:set-payload>
+
+                                    </ee:message>
+
+                                </ee:transform>
+								<logger level="INFO"
+                                        doc:name="Logger"
+                                        doc:id="8f4930af-ab80-4c68-a59e-63fe50239d8b"
+                                        message="Employee benefits calculated successfully"/>
+
+                            
+</when>
+
+
+                            <!-- ========================= -->
+                            <!-- HR NOT ELIGIBLE -->
+                            <!-- ========================= -->
+
+                            <otherwise>
+
+                                <set-variable value="422"
+                                              doc:name="Set Variable"
+                                              doc:id="bd69f481-fc39-4661-b03f-f2993efe1e34"
+                                              variableName="httpStatus"/>
+
+                                <set-payload value='#[%dw 2.0
+output application/json
+---
+{
+    status: "FAILED",
+    errorCode: "EMPLOYEE_NOT_ELIGIBLE",
+    message: "Employee is not eligible according to HR"
+}]'
+                                             doc:name="Set Payload"
+                                             doc:id="c78dc810-9532-448a-940d-f24db9f2d3f7"/>
+
+                            </otherwise>
+
+                        </choice>
+
+                    </otherwise>
+
+                </choice>
+
+            </otherwise>
+
+        </choice>
+
+    </flow>
+
+</mule>

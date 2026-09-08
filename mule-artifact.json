@@ -2,5 +2,12 @@
   "minMuleVersion": "4.12.0",
   "javaSpecificationVersions": [
     "17"
+  ],
+  "configs": [
+    "employee-onboarding-experience.xml",
+    "hr-system-api.xml",
+    "process-api.xml",
+    "payroll.xml",
+    "notification.xml"
   ]
 }

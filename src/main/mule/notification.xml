@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="NOTIFICATION_HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="bdafbbeb-d1d5-42f7-9a0f-c8db46c8b354" >
+		<http:listener-connection host="0.0.0.0" port="8086" />
+	</http:listener-config>
+	<flow name="notificationFlow" doc:id="48eef950-6bb3-400c-b60c-9895b7f20283" >
+		<http:listener doc:name="Listener" doc:id="e27abd3a-f917-4c8a-9329-0ee2ac77c671" config-ref="NOTIFICATION_HTTP_Listener_config" path="/notifications/welcome" allowedMethods="POST"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a8178b8b-71a1-40ef-a5f3-9f5f5acdff40" message="welcome notification received"/>
+		<ee:transform doc:name="Transform Message" doc:id="5b9db7b6-b245-40d5-aa81-ad495b934bf6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    employeeId: payload.employeeId,
+    notificationStatus: "SENT",
+    message: "Welcome notification sent successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
