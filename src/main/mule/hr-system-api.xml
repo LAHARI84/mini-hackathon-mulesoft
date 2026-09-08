@@ -10,7 +10,7 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 	<flow name="hr-system-apiFlow" doc:id="ed0b5873-7f0c-4b8d-a1c1-88ddbf81793c" >
 		<http:listener doc:name="Listener" doc:id="71300b5b-d775-40dc-b7d3-2e4309707e36" config-ref="HTTP_Listener_config1" path="/hr/eligibility/{employeeId}"/>
 		<choice doc:name="Choice" doc:id="c0fba9d5-22e5-4d2d-affe-5a85d27b1b97" >
-			<when expression='#[attributes.uriParams.employeeId == "EMP999"]'>
+			<when expression='#[attributes.uriParams.employeeId == "EMP998"]'>
 				<set-payload value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;    employeeId: attributes.uriParams.employeeId,&#10;    eligible: false,&#10;    employmentStatus: "INACTIVE"&#10;}]' doc:name="Set Payload" doc:id="51eba546-0dff-4467-b190-76b31ec6358a" />
 			</when>
 			<otherwise>
