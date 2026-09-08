@@ -4,9 +4,10 @@
     "17"
   ],
   "configs": [
-  "employee-onboarding-experience.xml",
-  "hr-system-api.xml",
-  "process-api.xml",
-  "payroll.xml"
-]
+    "employee-onboarding-experience.xml",
+    "hr-system-api.xml",
+    "process-api.xml",
+    "payroll.xml",
+    "notification.xml"
+  ]
 }

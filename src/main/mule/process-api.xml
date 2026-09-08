@@ -13,7 +13,7 @@
         http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
 
     <!-- HTTP LISTENER CONFIG -->
-    <http:listener-config name="HTTP_Listener_config"
+    <http:listener-config name="PROCESS_HTTP_Listener_config"
                           doc:name="HTTP Listener config"
                           doc:id="dbfb19a4-218a-48ba-ba2c-164490a671ee">
         <http:listener-connection host="0.0.0.0" port="8083"/>
@@ -42,13 +42,19 @@
 
 
     <!-- MAIN PROCESS API FLOW -->
-    <flow name="process-apiFlow"
+    <http:request-config name="PAYROLL_HTTP_Request_config" doc:name="HTTP Request configuration" doc:id="9c504cae-7680-4e8e-b40a-da15049f5544" >
+		<http:request-connection host="localhost" port="8085" />
+	</http:request-config>
+	<http:request-config name="NOTIFICATION_HTTP_Request_config" doc:name="HTTP Request configuration" doc:id="fc718450-ff24-4e16-a601-404f96a4440e" >
+		<http:request-connection host="localhost" port="8086" />
+	</http:request-config>
+	<flow name="process-apiFlow"
           doc:id="dbdcabe4-cc01-4aed-a7bd-a8e30ec3b619">
 
         <!-- LISTENER -->
         <http:listener doc:name="Listener"
                        doc:id="ae715644-132b-4ffa-a3fb-1ef16fe16220"
-                       config-ref="HTTP_Listener_config"
+                       config-ref="PAYROLL_HTTP_Listener_config"
                        path="/process/onboard">
 			<http:response statusCode="#[vars.httpStatus default 200]" />
 		</http:listener>
@@ -244,7 +250,7 @@ output application/java
                                 <!-- INSERT EMPLOYEE INTO DB -->
                                 <!-- ========================= -->
 
-                                <http:request method="POST" doc:name="Request" doc:id="9bda0304-fb0f-4991-903f-03b92eb6062a" url="http://localhost:8085/payroll/employees">
+                                <http:request method="POST" doc:name="Request" doc:id="9bda0304-fb0f-4991-903f-03b92eb6062a" url="http://localhost:8085/payroll/employees" config-ref="PAYROLL_HTTP_Request_config">
 									<http:body ><![CDATA[#[%dw 2.0
 output application/json
 ---
@@ -312,7 +318,17 @@ VALUES
                                 <!-- PAYROLL READY JSON -->
                                 <!-- ========================= -->
 
-                                <ee:transform doc:name="Transform Message"
+                                <http:request method="POST" doc:name="Request" doc:id="25a53381-5579-4b19-bc1d-280911ce0e9c" url="http://localhost:8086/notifications/welcome" config-ref="NOTIFICATION_HTTP_Request_config">
+									<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    employeeId: vars.employee.employeeId,
+    name: vars.employee.name,
+    email: vars.employee.email
+}]]]></http:body>
+								</http:request>
+								<ee:transform doc:name="Transform Message"
                                               doc:id="4dbf3655-0e30-419c-81e3-4f368fe70a41">
 
                                     <ee:message>

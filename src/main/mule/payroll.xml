@@ -5,11 +5,11 @@
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
-	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="3cd0b883-2c52-4f39-9047-aba344277d6f" >
+	<http:listener-config name="PAYROLL_HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="3cd0b883-2c52-4f39-9047-aba344277d6f" >
 		<http:listener-connection host="0.0.0.0" port="8085" />
 	</http:listener-config>
 	<flow name="payrollFlow" doc:id="a320e0ec-4d6f-44d5-a0cc-1d568a3569ca" >
-		<http:listener doc:name="Listener" doc:id="e27cc4fa-afdc-458d-9dbe-551cfe2dd869" config-ref="HTTP_Listener_config" path="/payroll/employees" allowedMethods="POST"/>
+		<http:listener doc:name="Listener" doc:id="e27cc4fa-afdc-458d-9dbe-551cfe2dd869" config-ref="PAYROLL_HTTP_Listener_config" path="/payroll/employees" allowedMethods="POST"/>
 		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="841d9382-fa53-41b6-b470-ff4735040038" variableName="employee"/>
 		<logger level="INFO" doc:name="Logger" doc:id="c10d131a-2e4b-4ed1-b2c2-0b990170dd5b" message="Payroll request received"/>
 		<ee:transform doc:name="Transform Message" doc:id="aad326b4-a6f1-4ad9-8184-aeef551986fb" >
